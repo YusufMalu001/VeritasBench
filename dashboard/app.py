@@ -1,149 +1,197 @@
 import streamlit as st
 import pandas as pd
-import plotly.express as px
-import plotly.graph_objects as go
-import json
-from pathlib import Path
+from data_loader import load_dashboard_data
+from visualizations import create_radar_chart, create_easy_vs_hard_chart, create_failure_analysis_chart
 
-st.set_page_config(page_title="VeritasBench", layout="wide")
+# Configure Page
+st.set_page_config(
+    page_title="VeritasBench Evaluation Dashboard",
+    page_icon="📊",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
 
-st.title("VeritasBench — LLM Evaluation Dashboard")
+# Load Data
+@st.cache_data
+def get_data():
+    return load_dashboard_data()
 
-def load_data():
-    raw_scores = []
-    aggregated_scores = {}
-    agreement_data = {}
-    
-    raw_path = Path("results/raw_scores.json")
-    if raw_path.exists():
-        with open(raw_path, "r") as f:
-            raw_scores = json.load(f)
-            
-    agg_path = Path("results/aggregated_scores.json")
-    if agg_path.exists():
-        with open(agg_path, "r") as f:
-            aggregated_scores = json.load(f)
-            
-    agr_path = Path("results/agreement_report.json")
-    if agr_path.exists():
-        with open(agr_path, "r") as f:
-            agreement_data = json.load(f)
-            
-    return raw_scores, aggregated_scores, agreement_data
+results_df, agg_scores, difficulty, eval_errors, prompts_df, errors_df = get_data()
 
-raw_scores, aggregated_scores, agreement_data = load_data()
-
-if not aggregated_scores:
-    st.warning("No aggregated scores found. Please run the evaluation pipeline and aggregator.")
+if results_df.empty:
+    st.error("No benchmark data found. Please run the evaluation pipeline first.")
     st.stop()
 
-# --- Radar Chart ---
-st.header("1. Radar Chart")
-radar_data = []
-for model, data in aggregated_scores.items():
-    dims = data["by_dimension"]
-    for dim_name, stats in dims.items():
-        radar_data.append(dict(Model=model, Dimension=dim_name, Score=stats["mean"]))
-        
-if radar_data:
-    df_radar = pd.DataFrame(radar_data)
-    fig = px.line_polar(df_radar, r='Score', theta='Dimension', color='Model', line_close=True, template="plotly_dark")
-    st.plotly_chart(fig, use_container_width=True)
+# Sidebar Setup
+st.sidebar.title("VeritasBench Options")
+available_models = results_df["model_name"].unique().tolist()
+selected_model = st.sidebar.selectbox("Select Model", available_models)
 
-# --- Overall Leaderboard ---
-st.header("2. Overall Leaderboard")
-leaderboard_data = []
-for model, data in aggregated_scores.items():
-    leaderboard_data.append({
-        "Model": model,
-        "Overall Score": data["overall"]["mean"],
-        "Std Dev": data["overall"]["std"]
-    })
-df_lb = pd.DataFrame(leaderboard_data).sort_values(by="Overall Score", ascending=False)
-st.dataframe(df_lb, use_container_width=True)
+# App Title
+st.title("VeritasBench Evaluation Dashboard")
 
-# --- Heatmap ---
-st.header("3. Heatmap (Models vs Dimensions)")
-heatmap_data = []
-models = list(aggregated_scores.keys())
-dimensions = list(aggregated_scores[models[0]]["by_dimension"].keys()) if models else []
+# ==================================================
+# SECTION 1: OVERVIEW
+# ==================================================
+st.header("1. Overview")
 
-for m in models:
-    row = {"Model": m}
-    for d in dimensions:
-        row[d] = aggregated_scores[m]["by_dimension"][d]["mean"]
-    heatmap_data.append(row)
+# Calculate metrics for selected model
+model_results = results_df[results_df["model_name"] == selected_model]
+overall_score = 0.0
+if selected_model in agg_scores:
+    overall_score = agg_scores[selected_model].get("overall", {}).get("mean", 0.0)
 
-if heatmap_data:
-    df_hm = pd.DataFrame(heatmap_data).set_index("Model")
-    fig_hm = px.imshow(df_hm, text_auto=True, color_continuous_scale="Viridis", template="plotly_dark")
-    st.plotly_chart(fig_hm, use_container_width=True)
+total_prompts = len(model_results)
+avg_latency = model_results["latency_ms"].mean() if not model_results.empty else 0
+eval_fails = model_results["evaluation_failed"].sum()
 
-# --- Human vs Judge Agreement ---
-st.header("4. Human vs Judge Agreement")
-if agreement_data:
-    col1, col2, col3 = st.columns(3)
-    col1.metric("Comparisons", agreement_data.get("num_comparisons", 0))
-    col2.metric("Raw Agreement", f"{agreement_data.get('raw_agreement_percent', 0):.1f}%")
-    col3.metric("Cohen's Kappa", f"{agreement_data.get('cohens_kappa', 0):.3f}")
+# Assume we take benchmark version from the first prompt
+version = prompts_df["benchmark_version"].iloc[0] if not prompts_df.empty else "v1.0"
+
+col1, col2, col3, col4, col5 = st.columns(5)
+col1.metric("Model", selected_model.split("/")[-1])
+col2.metric("Benchmark Version", version)
+col3.metric("Overall Score", f"{overall_score:.2%}")
+col4.metric("Avg Latency", f"{avg_latency/1000:.2f}s")
+col5.metric("Evaluation Failures", int(eval_fails))
+
+st.markdown("---")
+
+# ==================================================
+# SECTION 2: RADAR CHART
+# ==================================================
+st.header("2. Model Comparison (Radar Chart)")
+if len(available_models) > 1:
+    radar_models = st.multiselect("Select models to compare", available_models, default=available_models)
 else:
-    st.info("No agreement data found. Run human evaluation and agreement analysis.")
+    radar_models = [selected_model]
 
-# --- Failure Analysis ---
-st.header("5. Failure Analysis")
-if raw_scores:
-    failures = []
-    for entry in raw_scores:
-        if entry.get("failure_tags"):
-            failures.append({
-                "Model": entry["model_name"],
-                "Prompt ID": entry["prompt_id"],
-                "Category": entry["category"],
-                "Tags": ", ".join(entry["failure_tags"])
-            })
-    if failures:
-        df_failures = pd.DataFrame(failures)
-        st.dataframe(df_failures, use_container_width=True)
-        
-        # Tag distribution
-        tag_counts = pd.Series([t.strip() for tags in df_failures["Tags"] for t in tags.split(",")]).value_counts()
-        fig_tags = px.bar(tag_counts, title="Failure Tag Frequency", template="plotly_dark")
-        st.plotly_chart(fig_tags, use_container_width=True)
+radar_fig = create_radar_chart(agg_scores, radar_models)
+st.plotly_chart(radar_fig, use_container_width=True)
 
-# --- Example Drill-down ---
-st.header("6. Example Drill-down")
-if raw_scores:
-    df_raw = pd.DataFrame(raw_scores)
-    sel_model = st.selectbox("Select Model", df_raw["model_name"].unique())
-    sel_cat = st.selectbox("Select Category", df_raw["category"].unique())
-    filtered = df_raw[(df_raw["model_name"] == sel_model) & (df_raw["category"] == sel_cat)]
+st.markdown("---")
+
+# ==================================================
+# SECTION 3: EASY VS HARD BENCHMARK
+# ==================================================
+st.header("3. Easy vs Hard Tier Performance")
+if "tier" in results_df.columns:
+    easy_hard_fig = create_easy_vs_hard_chart(results_df, selected_model)
+    st.plotly_chart(easy_hard_fig, use_container_width=True)
+else:
+    st.info("Tier data not available. Ensure V2.1 benchmark structure is used.")
+
+st.markdown("---")
+
+# ==================================================
+# SECTION 4: FAILURE ANALYSIS
+# ==================================================
+st.header("4. Failure Analysis")
+failure_fig = create_failure_analysis_chart(results_df, selected_model)
+st.plotly_chart(failure_fig, use_container_width=True)
+
+st.markdown("---")
+
+# ==================================================
+# SECTION 5: BENCHMARK DIFFICULTY
+# ==================================================
+st.header("5. Benchmark Difficulty Report")
+diff_data = difficulty.get("prompt_classification", {})
+
+col1, col2, col3 = st.columns(3)
+col1.metric("Easy Prompts", len(diff_data.get("Easy", [])))
+col2.metric("Medium Prompts", len(diff_data.get("Medium", [])))
+col3.metric("Hard Prompts", len(diff_data.get("Hard", [])))
+
+sat_dims = difficulty.get("saturated_dimensions", [])
+if sat_dims:
+    st.warning(f"⚠️ **Saturation Detected**: The following dimensions scored 100% with 0 variance: {', '.join(sat_dims)}. Consider increasing prompt difficulty.")
+
+st.markdown("---")
+
+# ==================================================
+# SECTION 6: EVALUATION INTEGRITY PANEL
+# ==================================================
+st.header("6. Evaluation Integrity Panel")
+
+col1, col2, col3 = st.columns(3)
+
+config_errs_count = len(errors_df)
+if config_errs_count > 0:
+    col1.error(f"Config Errors: {config_errs_count}")
+else:
+    col1.success("Config Errors: 0")
+
+if eval_fails > 0:
+    col2.warning(f"Evaluation Failures: {int(eval_fails)}")
+else:
+    col2.success("Evaluation Failures: 0")
+
+if sat_dims:
+    col3.warning(f"Zero Variance Dimensions: {len(sat_dims)}")
+else:
+    col3.success("Zero Variance Dimensions: 0")
+
+st.markdown("---")
+
+# ==================================================
+# SECTION 7: PROMPT DRILL-DOWN
+# ==================================================
+st.header("7. Prompt Drill-Down")
+
+st.dataframe(
+    model_results[["prompt_id", "category", "tier", "score", "failure_tags"]],
+    use_container_width=True,
+    hide_index=True
+)
+
+st.subheader("Detail View")
+drill_id = st.selectbox("Select Prompt ID for details", model_results["prompt_id"].tolist())
+
+if drill_id:
+    drill_data = model_results[model_results["prompt_id"] == drill_id].iloc[0]
     
-    if not filtered.empty:
-        sel_prompt_id = st.selectbox("Select Prompt ID", filtered["prompt_id"].unique())
-        item = filtered[filtered["prompt_id"] == sel_prompt_id].iloc[0]
-        
-        st.subheader("Prompt")
-        st.write(item["prompt"])
-        st.subheader("Response")
-        st.write(item["response"])
-        st.subheader("Scores")
-        st.json(item["dimension_scores"])
-        st.subheader("Tags")
-        st.write(item["failure_tags"] if item["failure_tags"] else "None")
+    st.markdown("**Prompt:**")
+    st.info(drill_data["prompt"])
+    
+    st.markdown("**Response:**")
+    st.success(drill_data["response"] if drill_data["response"] else "No response generated.")
+    
+    st.markdown("**Explanation:**")
+    st.code(drill_data["explanation"])
 
-# --- Cost Analytics ---
-st.header("7. Cost Analytics")
-if raw_scores:
-    cost_data = []
-    for entry in raw_scores:
-        cost_data.append({
-            "Model": entry["model_name"],
-            "Tokens": entry.get("token_estimate", 0),
-            "Latency (ms)": entry.get("latency_ms", 0)
-        })
-    df_cost = pd.DataFrame(cost_data).groupby("Model").sum().reset_index()
-    st.dataframe(df_cost, use_container_width=True)
+st.markdown("---")
 
-# --- Arena Rankings ---
-st.header("8. Arena Rankings (ELO)")
-st.info("ELO rankings are computed via the pairwise preference script and stored separately. Integration planned for next version if arena matches are generated.")
+# ==================================================
+# SECTION 8: MODEL COMPARISON
+# ==================================================
+st.header("8. Model Comparison (Leaderboard)")
+
+leaderboard_data = []
+for m in available_models:
+    if m in agg_scores:
+        overall = agg_scores[m].get("overall", {}).get("mean", 0.0)
+        leaderboard_data.append({"Model": m, "Overall Score": f"{overall:.2%}"})
+
+leaderboard_df = pd.DataFrame(leaderboard_data)
+st.dataframe(leaderboard_df, use_container_width=True, hide_index=True)
+
+st.markdown("---")
+
+# ==================================================
+# SECTION 9: COST ANALYTICS
+# ==================================================
+st.header("9. Cost Analytics")
+
+avg_tokens = model_results["token_estimate"].mean() if not model_results.empty else 0
+# Approx cost heuristic: $0.50 / 1M tokens
+estimated_cost = (avg_tokens * total_prompts) / 1_000_000 * 0.50
+
+col1, col2, col3, col4 = st.columns(4)
+col1.metric("Average Latency", f"{avg_latency/1000:.2f}s")
+col2.metric("Average Tokens", f"{avg_tokens:.0f}")
+col3.metric("Estimated Cost", f"${estimated_cost:.4f}")
+col4.metric("Cache Hit Rate", "0.0%") # Placeholder for actual cache stat if added
+
+st.markdown("---")
+st.caption("VeritasBench Evaluation Dashboard • Powered by Streamlit")
