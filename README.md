@@ -1,4 +1,4 @@
-# VeritasBench 🚀
+# VeritasBench 
 
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![Streamlit](https://img.shields.io/badge/Streamlit-FF4B4B?style=flat&logo=Streamlit&logoColor=white)](https://streamlit.io/)
@@ -35,7 +35,7 @@ graph TD
 - **Human-vs-Judge Agreement Study**: Built-in CLI evaluation and `scikit-learn` integration to statistically validate the LLM Judge against human intuition using Cohen's Kappa.
 - **Production Dashboard**: A comprehensive Streamlit dashboard visualizing performance radars, cost analytics, and failure tag distributions.
 
-## 🧠 Benchmark Design
+##  Benchmark Design
 VeritasBench measures models across 5 core behavioral dimensions:
 1. **Instruction Following**: Complex multi-step constraints.
 2. **Factuality**: Semantic accuracy and temporal reasoning.
