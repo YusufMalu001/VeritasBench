@@ -194,4 +194,109 @@ col3.metric("Estimated Cost", f"${estimated_cost:.4f}")
 col4.metric("Cache Hit Rate", "0.0%") # Placeholder for actual cache stat if added
 
 st.markdown("---")
+
+# ==================================================
+# SECTION 10: BIAS ANALYSIS
+# ==================================================
+st.header("10. Bias Analysis")
+import json
+from pathlib import Path
+
+bias_file = Path("results/bias_report.json")
+if bias_file.exists():
+    with open(bias_file, "r", encoding="utf-8") as f:
+        bias_data = json.load(f)
+        
+    col1, col2, col3, col4 = st.columns(4)
+    
+    lb_corr = bias_data.get("length_bias", {}).get("correlation", 0.0)
+    pos_cons = bias_data.get("position_bias", {}).get("consistency_rate", 1.0)
+    hack = bias_data.get("hackability_score", 0.0)
+    cal_err = bias_data.get("calibration_error", {}).get("calibration_error", 0.0)
+    
+    def get_color(val, threshold1, threshold2, reverse=False):
+        if reverse:
+            if val > threshold2: return "green"
+            if val > threshold1: return "orange"
+            return "red"
+        else:
+            if val < threshold1: return "green"
+            if val < threshold2: return "orange"
+            return "red"
+            
+    lb_color = get_color(abs(lb_corr), 0.2, 0.4)
+    pos_color = get_color(pos_cons, 0.6, 0.8, reverse=True)
+    hack_color = get_color(hack, 0.2, 0.4)
+    cal_color = get_color(cal_err, 0.2, 0.4)
+    
+    col1.markdown(f"**Length Bias (r)**<br><h3 style='color:{lb_color}'>{abs(lb_corr):.3f}</h3>", unsafe_allow_html=True)
+    col2.markdown(f"**Position Consistency**<br><h3 style='color:{pos_color}'>{pos_cons:.1%}</h3>", unsafe_allow_html=True)
+    col3.markdown(f"**Hackability Score**<br><h3 style='color:{hack_color}'>{hack:.3f}</h3>", unsafe_allow_html=True)
+    col4.markdown(f"**Calibration Error**<br><h3 style='color:{cal_color}'>{cal_err:.3f}</h3>", unsafe_allow_html=True)
+    
+    with st.expander("What do these metrics mean?"):
+        st.write("- **Length Bias**: Pearson correlation between response length and judge score. >0.3 indicates verbosity bias.")
+        st.write("- **Position Consistency**: How often the judge gives the same verdict when A/B order is swapped. <85% indicates positional bias.")
+        st.write("- **Hackability Score**: Percentage of high-scoring responses that are also excessively long.")
+        st.write("- **Calibration Error**: Average of false-refusal rate and false-compliance rate.")
+else:
+    st.info("Run `python -m analysis.bias_detector` to generate bias analytics.")
+
+st.markdown("---")
+
+# ==================================================
+# SECTION 11: HEAD-TO-HEAD DEEP DIVE
+# ==================================================
+st.header("11. Head-to-Head Deep Dive")
+disagree_file = Path("results/disagreement_analysis.json")
+if disagree_file.exists():
+    with open(disagree_file, "r", encoding="utf-8") as f:
+        disagree_data = json.load(f)
+        
+    top_disagreements = disagree_data.get("top_disagreements", [])
+    if top_disagreements:
+        df_disagree = pd.DataFrame(top_disagreements)
+        
+        dim_filter = st.selectbox("Filter by Dimension", ["All"] + df_disagree["category"].unique().tolist())
+        if dim_filter != "All":
+            df_disagree = df_disagree[df_disagree["category"] == dim_filter]
+            
+        st.dataframe(
+            df_disagree[["prompt_id", "category", "winner", "delta"]].style.highlight_max(subset=['delta'], color='rgba(255, 75, 75, 0.3)'),
+            use_container_width=True,
+            hide_index=True
+        )
+else:
+    st.info("Run `python -m analysis.comparative_analysis` to generate head-to-head metrics.")
+
+st.markdown("---")
+
+# ==================================================
+# SECTION 12: BENCHMARK HEALTH
+# ==================================================
+st.header("12. Benchmark Health")
+diff_file = Path("results/difficulty_analysis.json")
+if diff_file.exists():
+    with open(diff_file, "r", encoding="utf-8") as f:
+        diff_data = json.load(f)
+        
+    mislabeled = diff_data.get("mislabeled_tiers", [])
+    if mislabeled:
+        st.warning(f"⚠️ {len(mislabeled)} prompts may be miscategorized across Easy/Hard tiers.")
+        st.dataframe(pd.DataFrame(mislabeled), use_container_width=True, hide_index=True)
+    else:
+        st.success("No mislabeled tiers detected.")
+        
+    # Histogram
+    item_diffs = diff_data.get("item_difficulties", {})
+    if item_diffs:
+        diff_df = pd.DataFrame([{"prompt_id": k, "difficulty": v} for k,v in item_diffs.items()])
+        st.subheader("Difficulty Distribution")
+        import plotly.express as px
+        fig = px.histogram(diff_df, x="difficulty", nbins=20, title="Empirical Difficulty of Prompts", template="plotly_dark")
+        st.plotly_chart(fig, use_container_width=True)
+else:
+    st.info("Run `python -m analysis.difficulty_calibrator` to assess benchmark health.")
+
+st.markdown("---")
 st.caption("VeritasBench Evaluation Dashboard • Powered by Streamlit")
