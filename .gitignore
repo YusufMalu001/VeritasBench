@@ -1,6 +1,7 @@
 .cache/
 logs/
 .env
+.env.local
 results/
 __pycache__/
 *.pyc
