@@ -7,7 +7,7 @@
 
 VeritasBench is a production-grade LLM evaluation framework designed for rigorous behavioral benchmarking, human-LLM agreement analysis, and extensible multi-tier evaluations. Built to eliminate the silent score inflation found in legacy benchmarks, VeritasBench enforces a strict, versioned metadata schema to ensure true generative evaluation rather than proxy heuristics.
 
-## 🏗️ Architecture Diagram
+##  Architecture Diagram
 
 ```mermaid
 graph TD
@@ -27,7 +27,7 @@ graph TD
     F --> J[Human-vs-Judge Study]
 ```
 
-## ✨ Key Features
+##  Key Features
 
 - **Strict Schema Enforcement**: Completely eliminates silent fallback heuristics. If a prompt lacks required evaluation metadata, it correctly registers as an evaluation failure, preventing artificial score saturation.
 - **Multi-Tier Difficulty**: Evaluates models across both `Easy` and `Hard` prompt tiers to measure true reasoning over simple recall.
@@ -45,7 +45,7 @@ VeritasBench measures models across 5 core behavioral dimensions:
 
 For a deeper dive into the JSON schema, see [docs/benchmark_design.md](docs/benchmark_design.md).
 
-## 📊 Dashboard & Visualizations
+##  Dashboard & Visualizations
 
 The included Streamlit dashboard provides deep drill-downs into model performance.
 
@@ -58,7 +58,7 @@ The included Streamlit dashboard provides deep drill-downs into model performanc
 ![Failure Analysis](assets/failure_analysis.png)
 *Common Failure Modes & Tags*
 
-## 🤝 Human vs Judge Validation
+##  Human vs Judge Validation
 
 VeritasBench doesn't just trust automated LLM Judges blindly. It includes a rigorous validation pipeline that samples generations and computes inter-rater agreement (Cohen's Kappa).
 
@@ -73,7 +73,7 @@ VeritasBench doesn't just trust automated LLM Judges blindly. It includes a rigo
 
 Read the full methodology in [docs/human_judge_validation.md](docs/human_judge_validation.md).
 
-## 🚀 Installation & Quick Start
+##  Installation & Quick Start
 
 1. **Install Dependencies**:
 ```bash
@@ -98,7 +98,7 @@ python -m pipeline.aggregator
 streamlit run dashboard/app.py
 ```
 
-## 📂 Repository Structure
+##  Repository Structure
 - `benchmark/`: Prompt datasets and versioned schemas.
 - `configs/`: YAML configurations for models and pipeline parameters.
 - `dashboard/`: Streamlit application and visualization logic.
@@ -107,7 +107,7 @@ streamlit run dashboard/app.py
 - `judge/`: Human CLI evaluator and statistical agreement computation.
 - `pipeline/`: High-throughput, caching evaluation runner.
 
-## 🛣️ Future Roadmap
+##  Future Roadmap
 - Integration of vLLM for ultra-fast local inference.
 - Multi-annotator Inter-Rater Agreement (IAA) support.
 - Expansion of the `Refusal Calibration` tier for domain-specific security compliance.
