@@ -7,9 +7,17 @@ class Verbosity(EvalDimension):
         return "verbosity"
 
     def score(self, prompt_data: Dict[str, Any], response_text: str) -> Tuple[float, str, List[str]]:
+        from dimensions.base_dimension import EvaluationConfigurationError
         meta = prompt_data.get("metadata", {})
-        expected_length = meta.get("expected_length", "medium")
         
+        if "target_word_count" not in meta:
+            raise EvaluationConfigurationError("Missing required metadata: 'target_word_count'")
+            
+        try:
+            target_words = int(meta["target_word_count"])
+        except ValueError:
+            raise EvaluationConfigurationError("'target_word_count' must be an integer.")
+            
         words = response_text.split()
         num_words = len(words)
         
@@ -17,38 +25,15 @@ class Verbosity(EvalDimension):
         score = 0.0
         explanation = ""
         
-        if expected_length == "short":
-            if num_words < 50:
-                score = 1.0
-                explanation = f"Response is appropriately short ({num_words} words)."
-            else:
-                score = 0.0
-                explanation = f"Response is too long for 'short' expected length ({num_words} words)."
-                failure_tags.append("verbosity_mismatch")
-                
-        elif expected_length == "medium":
-            if 50 <= num_words <= 200:
-                score = 1.0
-                explanation = f"Response is appropriately medium ({num_words} words)."
-            elif num_words < 50:
-                score = 0.5
-                explanation = f"Response is slightly too short for 'medium' expected length ({num_words} words)."
-                failure_tags.append("verbosity_mismatch")
-            else:
-                score = 0.0
-                explanation = f"Response is too long for 'medium' expected length ({num_words} words)."
-                failure_tags.append("verbosity_mismatch")
-                
-        elif expected_length == "long":
-            if num_words > 200:
-                score = 1.0
-                explanation = f"Response is appropriately long ({num_words} words)."
-            else:
-                score = 0.0
-                explanation = f"Response is too short for 'long' expected length ({num_words} words)."
-                failure_tags.append("verbosity_mismatch")
-                
+        # Give 1.0 if within 10% margin or exactly equal if small
+        margin = max(3, int(target_words * 0.10))
+        
+        if abs(num_words - target_words) <= margin:
+            score = 1.0
+            explanation = f"Response length ({num_words} words) is within acceptable margin of target ({target_words})."
         else:
-            return 1.0, "No strict verbosity expectation.", []
+            score = max(0.0, 1.0 - (abs(num_words - target_words) / target_words))
+            explanation = f"Response length ({num_words} words) missed target ({target_words})."
+            failure_tags.append("verbosity_mismatch")
             
         return score, explanation, failure_tags

@@ -9,8 +9,13 @@ class FormatAdherence(EvalDimension):
         return "format_adherence"
 
     def score(self, prompt_data: Dict[str, Any], response_text: str) -> Tuple[float, str, List[str]]:
+        from dimensions.base_dimension import EvaluationConfigurationError
         meta = prompt_data.get("metadata", {})
-        fmt = meta.get("format", "")
+        
+        if "expected_format" not in meta:
+            raise EvaluationConfigurationError("Missing required metadata: 'expected_format'")
+            
+        fmt = meta["expected_format"]
         
         failure_tags = []
         score = 0.0
@@ -18,7 +23,6 @@ class FormatAdherence(EvalDimension):
         
         if fmt == "json":
             try:
-                # find json boundaries if padded
                 start = response_text.find('{')
                 end = response_text.rfind('}') + 1
                 if start != -1 and end != 0:
@@ -41,34 +45,35 @@ class FormatAdherence(EvalDimension):
                 explanation = "No valid markdown table detected."
                 failure_tags.append("formatting_error")
                 
-        elif fmt == "numbered_bold":
-            if re.search(r'\d+\.\s+\*\*', response_text):
+        elif fmt == "numbered_list":
+            import re
+            if re.search(r'\d+\.\s+', response_text):
                 score = 1.0
-                explanation = "Numbered bold items detected."
+                explanation = "Numbered list detected."
             else:
                 score = 0.0
-                explanation = "Numbered bold items missing."
+                explanation = "Numbered list missing."
                 failure_tags.append("formatting_error")
                 
-        elif fmt == "custom_markers":
-            if "PROS:" in response_text and "CONS:" in response_text:
+        elif fmt == "xml_tags":
+            if "<" in response_text and ">" in response_text and "</" in response_text:
                 score = 1.0
-                explanation = "Custom markers PROS: and CONS: detected."
+                explanation = "XML tags detected."
             else:
                 score = 0.0
-                explanation = "Custom markers missing."
+                explanation = "XML tags missing."
                 failure_tags.append("formatting_error")
                 
         elif fmt == "code_block":
-            if "```python" in response_text and "```" in response_text.replace("```python", ""):
+            if "```" in response_text:
                 score = 1.0
-                explanation = "Python code block detected."
+                explanation = "Code block detected."
             else:
                 score = 0.0
                 explanation = "Code block missing."
                 failure_tags.append("formatting_error")
                 
         else:
-            return 1.0, "No strict format requirement.", []
+            raise EvaluationConfigurationError(f"Unsupported format type: {fmt}")
             
         return score, explanation, failure_tags

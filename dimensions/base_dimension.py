@@ -1,6 +1,9 @@
 from abc import ABC, abstractmethod
 from typing import Dict, Any, Tuple, List
 
+class EvaluationConfigurationError(Exception):
+    pass
+
 class EvalDimension(ABC):
     @property
     @abstractmethod

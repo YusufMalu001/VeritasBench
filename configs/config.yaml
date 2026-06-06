@@ -5,17 +5,9 @@ num_prompts: 25
 human_eval_sample_size: 5
 
 models_to_evaluate:
-  - name: "mistralai/Mistral-7B-Instruct-v0.3"
+  - name: "meta-llama/Llama-3.1-8B-Instruct"
     type: "huggingface"
-    capabilities:
-      supports_chat: false
-      supports_text_generation: true
 
-judge_model:
-  name: "Qwen/Qwen3-32B"
-  type: "huggingface"
-  capabilities:
-    supports_chat: true
-    supports_text_generation: true
+judge_model: "Qwen/Qwen3-32B"
 
 results_dir: "./results"
