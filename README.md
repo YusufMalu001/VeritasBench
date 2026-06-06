@@ -1,79 +1,104 @@
-# VeritasBench
+# VeritasBench 🚀
 
-VeritasBench is a production-grade LLM evaluation framework designed for rigorous behavioral benchmarking, human-LLM agreement analysis, and extensible ELO arena comparisons.
+[![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
+[![Streamlit](https://img.shields.io/badge/Streamlit-FF4B4B?style=flat&logo=Streamlit&logoColor=white)](https://streamlit.io/)
+[![Hugging Face](https://img.shields.io/badge/%F0%9F%A4%97%20Hugging%20Face-Router-orange)](https://huggingface.co/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-## Architecture
+VeritasBench is a production-grade LLM evaluation framework designed for rigorous behavioral benchmarking, human-LLM agreement analysis, and extensible multi-tier evaluations. Built to eliminate the silent score inflation found in legacy benchmarks, VeritasBench enforces a strict, versioned metadata schema to ensure true generative evaluation rather than proxy heuristics.
 
-* **Models**: Scalable inference via Hugging Face Router (OpenAI-compatible client).
-* **Evaluation Dimensions**:
-  * Instruction Following
-  * Factuality
-  * Refusal Calibration
-  * Format Adherence
-  * Verbosity
-* **Judging**: LLM-as-a-judge (`Qwen/Qwen3-32B` default) and CLI-based human evaluation.
-* **Analysis**: Streamlit Dashboard and automated Markdown report generator.
+## 🏗️ Architecture Diagram
 
-## Setup
+```mermaid
+graph TD
+    A[Benchmark Prompts <br> v2.1 Easy & Hard] --> B(Pipeline Runner)
+    C[Hugging Face Router <br> Inference API] --> B
+    B --> D{Evaluation Dimensions}
+    D -->|Instruction Following| E[LLM Judge / Heuristics]
+    D -->|Factuality| E
+    D -->|Format Adherence| E
+    D -->|Refusal Calibration| E
+    D -->|Verbosity| E
+    E --> F[Raw Scores JSON]
+    F --> G(Aggregator)
+    G --> H[Aggregated Scores JSON]
+    F --> I[Streamlit Dashboard]
+    H --> I
+    F --> J[Human-vs-Judge Study]
+```
 
-1. Install dependencies:
+## ✨ Key Features
+
+- **Strict Schema Enforcement**: Completely eliminates silent fallback heuristics. If a prompt lacks required evaluation metadata, it correctly registers as an evaluation failure, preventing artificial score saturation.
+- **Multi-Tier Difficulty**: Evaluates models across both `Easy` and `Hard` prompt tiers to measure true reasoning over simple recall.
+- **LLM-as-a-Judge API**: Robust evaluations via configurable external models (default: `Qwen/Qwen3-32B`).
+- **Human-vs-Judge Agreement Study**: Built-in CLI evaluation and `scikit-learn` integration to statistically validate the LLM Judge against human intuition using Cohen's Kappa.
+- **Production Dashboard**: A comprehensive Streamlit dashboard visualizing performance radars, cost analytics, and failure tag distributions.
+
+## 🧠 Benchmark Design
+VeritasBench measures models across 5 core behavioral dimensions:
+1. **Instruction Following**: Complex multi-step constraints.
+2. **Factuality**: Semantic accuracy and temporal reasoning.
+3. **Format Adherence**: Exact structural generation (JSON, XML, Markdown).
+4. **Refusal Calibration**: Distinction between malicious intent and benign educational requests.
+5. **Verbosity**: Exact token/word length constraints.
+
+For a deeper dive into the JSON schema, see [docs/benchmark_design.md](docs/benchmark_design.md).
+
+## 📊 Dashboard & Visualizations
+
+The included Streamlit dashboard provides deep drill-downs into model performance.
+
+![Dashboard Overview](assets/radar_chart.png)
+*Model Comparison across 5 Evaluation Dimensions*
+
+![Failure Analysis](assets/failure_analysis.png)
+*Common Failure Modes & Tags*
+
+## 🤝 Human vs Judge Validation
+
+VeritasBench doesn't just trust automated LLM Judges blindly. It includes a rigorous validation pipeline that samples generations and computes inter-rater agreement (Cohen's Kappa).
+
+![Confusion Matrix](assets/confusion_matrix.png)
+*Human vs LLM Confusion Matrix*
+
+Read the full methodology in [docs/human_judge_validation.md](docs/human_judge_validation.md).
+
+## 🚀 Installation & Quick Start
+
+1. **Install Dependencies**:
 ```bash
 pip install -r requirements.txt
+pip install "kaleido>=1.0.0"  # Required for automated asset generation
 ```
 
-2. Set up environment variables:
-Copy `.env.example` to `.env` and set your `HF_TOKEN`. 
-**Note:** Your token MUST have:
-- Read access to public gated repositories
-- Make calls to Inference Providers
-
-## Development Workflow
-
-1. Verify token and router access:
-```bash
-python -m scripts.smoke_test
+2. **Configure Environment**:
+Create a `.env` file and set your Hugging Face API Token (must have Inference permissions):
+```env
+HF_TOKEN=your_token_here
 ```
 
-2. Generate baseline prompts (25 prompts):
+3. **Run the Pipeline**:
 ```bash
-python -m scripts.generate_prompts
-python -m scripts.validate_benchmark
-```
-
-3. Run Evaluation Pipeline:
-```bash
-python -m pipeline.runner
-```
-
-4. Aggregate Scores:
-```bash
+python -m pipeline.runner --force-rerun
 python -m pipeline.aggregator
 ```
 
-5. Launch Dashboard:
+4. **Launch Dashboard**:
 ```bash
 streamlit run dashboard/app.py
 ```
 
-## Human vs LLM Judge Validation
+## 📂 Repository Structure
+- `benchmark/`: Prompt datasets and versioned schemas.
+- `configs/`: YAML configurations for models and pipeline parameters.
+- `dashboard/`: Streamlit application and visualization logic.
+- `dimensions/`: Core Python evaluators for the 5 benchmark criteria.
+- `docs/`: Technical documentation and methodology.
+- `judge/`: Human CLI evaluator and statistical agreement computation.
+- `pipeline/`: High-throughput, caching evaluation runner.
 
-VeritasBench includes a rigorous Human-vs-Judge Agreement Study to validate the reliability of its automated LLM Judge (`Qwen/Qwen3-32B`).
-
-### Methodology
-- **Sampling**: Responses are systematically sampled from the `results/raw_scores.json` using `scripts/sample_for_human_eval.py`, balancing across all 5 evaluation dimensions.
-- **Human Evaluation**: A human evaluator blindly reviews the prompt, model response, and evaluation dimension using the `judge/human_judge.py` CLI interface, assigning a binary score (`1` for Pass, `0` for Fail).
-- **LLM Judge Export**: Continuous scores from the LLM judge are extracted and thresholded (`>= 0.5` becomes `1`) via `scripts/export_llm_judgements.py`.
-- **Analysis**: The `judge/agreement.py` script calculates Raw Agreement %, Cohen's Kappa, and Macro F1 scores, overall and per-dimension.
-
-### Results
-The agreement study consistently demonstrates substantial alignment (Cohen's Kappa > 0.60) between human intuition and the LLM Judge across complex reasoning and multi-constraint formatting tasks.
-
-### Agreement Visualizations
-![Confusion Matrix](assets/confusion_matrix.png)
-*Human vs LLM Confusion Matrix*
-
-![Cohen's Kappa Heatmap](assets/agreement_heatmap.png)
-*Agreement Heatmap by Dimension*
-
-![Raw Agreement %](assets/agreement_breakdown.png)
-*Raw Agreement % by Dimension*
+## 🛣️ Future Roadmap
+- Integration of vLLM for ultra-fast local inference.
+- Multi-annotator Inter-Rater Agreement (IAA) support.
+- Expansion of the `Refusal Calibration` tier for domain-specific security compliance.
