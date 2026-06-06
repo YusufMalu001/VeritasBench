@@ -52,6 +52,9 @@ The included Streamlit dashboard provides deep drill-downs into model performanc
 ![Dashboard Overview](assets/radar_chart.png)
 *Model Comparison across 5 Evaluation Dimensions*
 
+![Benchmark Tier Comparison](assets/benchmark_comparison.png)
+*Performance Comparison: Easy vs Hard Tier*
+
 ![Failure Analysis](assets/failure_analysis.png)
 *Common Failure Modes & Tags*
 
@@ -61,6 +64,12 @@ VeritasBench doesn't just trust automated LLM Judges blindly. It includes a rigo
 
 ![Confusion Matrix](assets/confusion_matrix.png)
 *Human vs LLM Confusion Matrix*
+
+![Cohen's Kappa Heatmap](assets/agreement_heatmap.png)
+*Agreement Heatmap by Dimension*
+
+![Raw Agreement %](assets/agreement_breakdown.png)
+*Raw Agreement % by Dimension*
 
 Read the full methodology in [docs/human_judge_validation.md](docs/human_judge_validation.md).
 
