@@ -4,8 +4,14 @@ max_new_tokens: 512
 num_prompts: 25
 human_eval_sample_size: 5
 
+benchmark_files:
+  - "benchmark/prompts_v2_easy.json"
+  - "benchmark/prompts_v2_hard.json"
+
 models_to_evaluate:
   - name: "meta-llama/Llama-3.1-8B-Instruct"
+    type: "huggingface"
+  - name: "google/gemma-3-27b-it"
     type: "huggingface"
 
 judge_model: "Qwen/Qwen3-32B"

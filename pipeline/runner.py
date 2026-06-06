@@ -47,7 +47,8 @@ class PipelineRunner:
         self.results_dir.mkdir(parents=True, exist_ok=True)
         self.raw_scores_file = self.results_dir / "raw_scores.json"
         
-        self.prompt_builder = PromptBuilder()
+        benchmark_files = self.config.get("benchmark_files", ["benchmark/prompts.json"])
+        self.prompt_builder = PromptBuilder(prompts_files=benchmark_files)
         self.prompts = self.prompt_builder.get_all_prompts()
         
         self.models = []

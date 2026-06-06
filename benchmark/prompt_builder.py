@@ -13,34 +13,43 @@ class PromptValidationError(Exception):
     pass
 
 class PromptBuilder:
-    def __init__(self, prompts_file: str = "benchmark/prompts.json"):
-        self.prompts_file = Path(prompts_file)
+    def __init__(self, prompts_files: List[str] = None):
+        if prompts_files is None:
+            prompts_files = ["benchmark/prompts.json"]
+        self.prompts_files = [Path(f) for f in prompts_files]
         self.prompts: List[Dict[str, Any]] = []
         self._load_prompts()
         self._log_startup_stats()
         
     def _load_prompts(self) -> None:
-        logger.info(f"Loading prompts from file path: {self.prompts_file.absolute()}")
-        
-        if not self.prompts_file.exists():
-            raise PromptFileNotFoundError(f"Prompt file not found at {self.prompts_file.absolute()}")
+        for pf in self.prompts_files:
+            logger.info(f"Loading prompts from file path: {pf.absolute()}")
             
-        try:
-            with open(self.prompts_file, "r", encoding="utf-8") as f:
-                data = json.load(f)
+            if not pf.exists():
+                raise PromptFileNotFoundError(f"Prompt file not found at {pf.absolute()}")
                 
-            if isinstance(data, dict):
-                self.prompts = data.get("prompts", [])
-                self.benchmark_version = data.get("benchmark_version", "unknown")
-            else:
-                self.prompts = data
-                self.benchmark_version = "v1.0"
+            try:
+                with open(pf, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                    
+                if isinstance(data, dict):
+                    file_prompts = data.get("prompts", [])
+                    tier = data.get("tier", "easy")
+                    self.benchmark_version = data.get("benchmark_version", "unknown")
+                else:
+                    file_prompts = data
+                    tier = "easy"
+                    self.benchmark_version = "v1.0"
+                    
+                for p in file_prompts:
+                    p["tier"] = tier
+                    self.prompts.append(p)
+                    
+            except json.JSONDecodeError as e:
+                raise PromptValidationError(f"Malformed JSON schema in {pf}: {e}")
                 
-        except json.JSONDecodeError as e:
-            raise PromptValidationError(f"Malformed JSON schema in prompts file: {e}")
-            
         if not self.prompts:
-            raise PromptValidationError("Prompt file contains zero prompts. Must have at least one prompt.")
+            raise PromptValidationError("Prompt files contain zero prompts. Must have at least one prompt.")
             
         # Validate schema for all items
         for idx, prompt in enumerate(self.prompts):
