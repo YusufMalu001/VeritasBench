@@ -8,9 +8,13 @@ from tenacity import retry, wait_exponential, stop_after_attempt
 
 logger = logging.getLogger(__name__)
 
+class ModelCapabilityError(Exception):
+    pass
+
 class LLMJudge:
-    def __init__(self, judge_model: str = "Qwen/Qwen3-32B"):
+    def __init__(self, judge_model: str = "Qwen/Qwen3-32B", capabilities: Dict[str, bool] = None):
         self.judge_model = judge_model
+        self.capabilities = capabilities or {"supports_chat": True, "supports_text_generation": True}
         hf_token = os.getenv("HF_TOKEN")
         if not hf_token:
             raise ValueError("HF_TOKEN is not set")
@@ -23,14 +27,27 @@ class LLMJudge:
         
     @retry(wait=wait_exponential(multiplier=1, min=4, max=10), stop=stop_after_attempt(3))
     def _call_judge(self, prompt: str) -> str:
-        response = self.client.chat.completions.create(
-            model=self.judge_model,
-            messages=[{"role": "user", "content": prompt}],
-            temperature=0.1,
-            max_tokens=256,
-            response_format={"type": "json_object"}
-        )
-        return response.choices[0].message.content
+        if self.capabilities.get("supports_chat"):
+            response = self.client.chat.completions.create(
+                model=self.judge_model,
+                messages=[{"role": "user", "content": prompt}],
+                temperature=0.1,
+                max_tokens=256,
+                response_format={"type": "json_object"}
+            )
+            return response.choices[0].message.content
+        elif self.capabilities.get("supports_text_generation"):
+            # Provide explicit instruction to output JSON if it's text generation
+            prompt = prompt + "\n\nProvide your response ONLY in valid JSON format."
+            response = self.client.completions.create(
+                model=self.judge_model,
+                prompt=prompt,
+                temperature=0.1,
+                max_tokens=256
+            )
+            return response.choices[0].text
+        else:
+            raise ModelCapabilityError(f"Judge model {self.judge_model} does not support any configured generation mode.")
 
     def evaluate_pairwise(self, prompt: str, response_a: str, response_b: str, dimension_name: str = "overall") -> Dict[str, Any]:
         cache_key = f"pairwise_{self.judge_model}_{prompt}_{response_a}_{response_b}_{dimension_name}"
@@ -59,6 +76,12 @@ class LLMJudge:
         
         try:
             content = self._call_judge(judge_prompt)
+            # Basic cleanup in case text generation returned markdown code blocks
+            if "```json" in content:
+                content = content.split("```json")[1].split("```")[0].strip()
+            elif "```" in content:
+                content = content.split("```")[1].strip()
+                
             result = json.loads(content)
             # Ensure keys exist
             winner = result.get("winner", "Tie")
