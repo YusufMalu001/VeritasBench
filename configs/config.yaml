@@ -1,0 +1,13 @@
+random_seed: 42
+temperature: 0.2
+max_new_tokens: 512
+num_prompts: 25
+human_eval_sample_size: 5
+
+models_to_evaluate:
+  - name: "mistralai/Mistral-7B-Instruct-v0.3"
+    type: "huggingface"
+
+judge_model: "Qwen/Qwen3-32B"
+
+results_dir: "./results"

@@ -1,0 +1,13 @@
+openai
+huggingface_hub
+transformers
+streamlit
+plotly
+scikit-learn
+numpy
+pandas
+tqdm
+pyyaml
+python-dotenv
+diskcache
+tenacity
