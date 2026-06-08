@@ -30,14 +30,12 @@ class CompatibilityChecker:
             json.dump(self.cache, f, indent=2)
 
     def validate_models(self, models: list[str]) -> None:
-        hf_token = os.getenv("HF_TOKEN")
-        if not hf_token:
-            raise ValueError("HF_TOKEN is not set.")
+        groq_api_key = os.getenv("GROQ_API_KEY")
+        if not groq_api_key:
+            raise ValueError("GROQ_API_KEY is not set.")
             
-        client = OpenAI(
-            base_url="https://router.huggingface.co/v1",
-            api_key=hf_token
-        )
+        from groq import Groq
+        client = Groq(api_key=groq_api_key)
         
         updated = False
         

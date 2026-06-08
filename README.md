@@ -111,3 +111,10 @@ streamlit run dashboard/app.py
 - Integration of vLLM for ultra-fast local inference.
 - Multi-annotator Inter-Rater Agreement (IAA) support.
 - Expansion of the `Refusal Calibration` tier for domain-specific security compliance.
+
+## Benchmark Results
+
+| Model | Overall Score | Easy Tier | Hard Tier |
+|-------|---------------|-----------|-----------|
+| `llama-3.1-8b-instant` | 73.56% | 75.12% | 72.00% |
+
