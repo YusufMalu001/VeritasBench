@@ -2,26 +2,23 @@ import os
 import json
 import logging
 from typing import Dict, Any
-from openai import OpenAI
+from groq import Groq
 from diskcache import Cache
 from tenacity import retry, wait_exponential, stop_after_attempt
 
 logger = logging.getLogger(__name__)
 
 class LLMJudge:
-    def __init__(self, judge_model: str = "Qwen/Qwen3-32B"):
+    def __init__(self, judge_model: str = "llama-3.3-70b-versatile"):
         self.judge_model = judge_model
-        hf_token = os.getenv("HF_TOKEN")
-        if not hf_token:
-            raise ValueError("HF_TOKEN is not set")
+        groq_api_key = os.getenv("GROQ_API_KEY")
+        if not groq_api_key:
+            raise ValueError("GROQ_API_KEY is not set")
             
-        self.client = OpenAI(
-            base_url="https://router.huggingface.co/v1",
-            api_key=hf_token
-        )
+        self.client = Groq(api_key=groq_api_key)
         self.cache = Cache(".cache/llm_judge")
         
-    @retry(wait=wait_exponential(multiplier=1, min=4, max=10), stop=stop_after_attempt(3))
+    @retry(wait=wait_exponential(multiplier=1, min=10, max=60), stop=stop_after_attempt(3))
     def _call_judge(self, prompt: str) -> str:
         response = self.client.chat.completions.create(
             model=self.judge_model,

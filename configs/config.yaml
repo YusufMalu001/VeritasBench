@@ -2,13 +2,13 @@ benchmark_files:
 - benchmark/prompts_v2_easy.json
 - benchmark/prompts_v2_hard.json
 human_eval_sample_size: 5
-judge_model: Qwen/Qwen3-32B
+judge_model: llama-3.3-70b-versatile
 max_new_tokens: 512
 models_to_evaluate:
-- name: Qwen/Qwen2-0.5B-Instruct
-  provider: huggingface
-- name: microsoft/Phi-3-mini-4k-instruct
-  provider: huggingface
+- name: gemma2-9b-it
+  type: groq
+- name: llama-3.1-8b-instant
+  type: groq
 num_prompts: 25
 random_seed: 42
 results_dir: ./results

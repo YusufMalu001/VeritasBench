@@ -70,47 +70,75 @@ def main():
     with open(config_path, "r", encoding="utf-8") as f:
         config = yaml.safe_load(f)
         
-    from openai import OpenAI
+    from groq import Groq
     
     candidate_models = [
-        "meta-llama/Llama-3.1-8B-Instruct",
-        "Qwen/Qwen3-32B",
-        "google/gemma-3-27b-it",
-        "Qwen/Qwen2-0.5B-Instruct",
-        "microsoft/Phi-3-mini-4k-instruct"
+        "gemma2-9b-it",
+        "llama-3.1-8b-instant",
+        "llama-3.3-70b-versatile"
     ]
+    from dotenv import load_dotenv
+    load_dotenv()
+    groq_api_key = os.getenv("GROQ_API_KEY")
     
-    hf_token = os.getenv("HF_TOKEN")
-    if not hf_token:
-        logger.warning("HF_TOKEN not found in environment. Validation may fail.")
+    if not groq_api_key:
+        logger.warning("GROQ_API_KEY not found in environment. Validation may fail.")
         
-    client = OpenAI(
-        base_url="https://router.huggingface.co/v1/",
-        api_key=hf_token
-    )
+    client = Groq(api_key=groq_api_key)
     
+    report_file = Path("results/model_compatibility_report.json")
     compatibility_report = {}
+    use_cache = False
+    
+    if report_file.exists():
+        mtime = report_file.stat().st_mtime
+        age_hours = (time.time() - mtime) / 3600
+        if age_hours < 24:
+            logger.info(f"Reusing model compatibility cache (Age: {age_hours:.1f} hours).")
+            use_cache = True
+            with open(report_file, "r", encoding="utf-8") as f:
+                compatibility_report = json.load(f)
+                
+    if not use_cache:
+        logger.info("Validating candidate models via Groq API...")
+        for model in candidate_models:
+            start_ping = time.time()
+            compatible = False
+            try:
+                client.chat.completions.create(
+                    model=model,
+                    messages=[{"role": "user", "content": "Hello"}],
+                    max_tokens=1
+                )
+                compatible = True
+            except Exception as e:
+                pass
+                
+            latency_ms = int((time.time() - start_ping) * 1000)
+            cost_per_1k = 0.0008 if "b" in model.lower() and not ("0.5b" in model.lower() or "8b" in model.lower() or "3b" in model.lower()) else 0.0004
+            
+            compatibility_report[model] = {
+                "model": model,
+                "compatible": compatible,
+                "latency_ms": latency_ms,
+                "provider": "groq",
+                "estimated_cost_per_1k": cost_per_1k,
+                "validation_timestamp": datetime.utcnow().isoformat() + "Z"
+            }
+            
+        Path("results").mkdir(parents=True, exist_ok=True)
+        with open(report_file, "w", encoding="utf-8") as f:
+            json.dump(compatibility_report, f, indent=2)
+            
     compatible_models = []
     rejected_models = []
     
-    logger.info("Validating candidate models via Hugging Face Router...")
-    
-    for model in candidate_models:
-        try:
-            client.chat.completions.create(
-                model=model,
-                messages=[{"role": "user", "content": "Hello"}],
-                max_tokens=1
-            )
-            compatibility_report[model] = True
-            compatible_models.append(model)
-        except Exception as e:
-            compatibility_report[model] = False
-            rejected_models.append(model)
-            
-    Path("results").mkdir(parents=True, exist_ok=True)
-    with open("results/model_compatibility_report.json", "w", encoding="utf-8") as f:
-        json.dump(compatibility_report, f, indent=2)
+    for m, data in compatibility_report.items():
+        is_compat = data.get("compatible", False) if isinstance(data, dict) else data
+        if is_compat:
+            compatible_models.append(m)
+        else:
+            rejected_models.append(m)
         
     logger.info(f"Compatible Models: {compatible_models}")
     logger.info(f"Rejected Models: {rejected_models}")
@@ -123,7 +151,7 @@ def main():
         return
         
     config["models_to_evaluate"] = [
-        {"name": m, "provider": "huggingface"} for m in compatible_models
+        {"name": m, "type": "groq"} for m in compatible_models if m != "llama-3.3-70b-versatile"
     ]
     
     with open(config_path, "w", encoding="utf-8") as f:

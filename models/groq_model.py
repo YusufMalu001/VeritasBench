@@ -3,24 +3,21 @@ import time
 from datetime import datetime
 from typing import Dict, Any
 import logging
-from openai import OpenAI
+from groq import Groq
 from diskcache import Cache
 from models.base_model import BaseModel
 
 logger = logging.getLogger(__name__)
 
-class HuggingFaceModel(BaseModel):
+class GroqModel(BaseModel):
     def __init__(self, model_name: str, config: Dict[str, Any] = None):
         super().__init__(model_name, config)
-        hf_token = os.getenv("HF_TOKEN")
-        if not hf_token:
-            raise ValueError("HF_TOKEN environment variable is not set.")
+        groq_api_key = os.getenv("GROQ_API_KEY")
+        if not groq_api_key:
+            raise ValueError("GROQ_API_KEY environment variable is not set.")
             
-        self.client = OpenAI(
-            base_url="https://router.huggingface.co/v1",
-            api_key=hf_token
-        )
-        self.cache = Cache(".cache/hf_responses")
+        self.client = Groq(api_key=groq_api_key)
+        self.cache = Cache(".cache/groq_responses")
         
         self.temperature = self.config.get("temperature", 0.2)
         self.max_tokens = self.config.get("max_new_tokens", 512)
@@ -39,10 +36,10 @@ class HuggingFaceModel(BaseModel):
         start_time = time.time()
         
         from tenacity import Retrying, wait_exponential, stop_after_attempt
-        import openai
+        import groq
         
         retryer = Retrying(
-            wait=wait_exponential(multiplier=1, min=2, max=10),
+            wait=wait_exponential(multiplier=1, min=10, max=60),
             stop=stop_after_attempt(4)
         )
         
@@ -67,7 +64,7 @@ class HuggingFaceModel(BaseModel):
         except Exception as e:
             logger.error(f"Error generating response: {e}")
             generation_failed = True
-            if isinstance(e, openai.RateLimitError) or (hasattr(e, 'status_code') and e.status_code == 429) or "429" in str(e):
+            if isinstance(e, groq.RateLimitError) or (hasattr(e, 'status_code') and e.status_code == 429) or "429" in str(e):
                 failure_reason = "rate_limited"
             else:
                 failure_reason = str(e)
