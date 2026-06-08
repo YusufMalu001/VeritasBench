@@ -40,6 +40,9 @@ The human rater is instructed to perform absolute binary scoring. They must inpu
 
 Because human raters provide binary `[0, 1]` outputs and the LLM Judge outputs continuous floats `[0.0 - 1.0]`, we use threshold mapping (`>= 0.5 -> 1`) on the LLM judge's scores to create symmetrical comparative datasets. We then compute **Cohen's Kappa (κ)**, a robust statistical measure of inter-rater reliability that accounts for agreement occurring by random chance.
 
+### The Kappa Paradox
+It is important to note the **Kappa paradox** for zero-variance dimensions: A Kappa score of `0.0` despite high raw agreement indicates zero variance in human labels for that dimension (e.g., all raters agreed, causing a denominator collapse in the formula). In these cases, raw agreement is the more meaningful metric. This phenomenon is extensively documented in the classic paper by Feinstein & Cicchetti (1990), *"High agreement but low kappa: I. The problems of two paradoxes"*.
+
 ### Interpretation Guide for VeritasBench:
 - **κ > 0.80 (Almost Perfect)**: The LLM Judge mirrors human intuition almost flawlessly. The pipeline is fully production-ready.
 - **κ = 0.61 – 0.80 (Substantial)**: The LLM Judge is highly reliable. Minor disagreements occur on edge cases.

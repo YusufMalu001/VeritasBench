@@ -122,7 +122,7 @@
         "reference_answer": "carbon fixation",
         "evaluation_type": "semantic_match"
       },
-      "tier": "hard"
+      "tier": "easy"
     },
     {
       "id": "ref_hard_1",
@@ -203,7 +203,7 @@
       "metadata": {
         "expected_format": "code_block"
       },
-      "tier": "easy"
+      "tier": "hard"
     },
     {
       "id": "fmt_hard_5",
@@ -221,7 +221,7 @@
       "metadata": {
         "target_word_count": 25
       },
-      "tier": "easy"
+      "tier": "hard"
     },
     {
       "id": "verb_hard_2",
@@ -230,7 +230,7 @@
       "metadata": {
         "target_word_count": 10
       },
-      "tier": "easy"
+      "tier": "hard"
     },
     {
       "id": "verb_hard_3",
@@ -239,7 +239,7 @@
       "metadata": {
         "target_word_count": 100
       },
-      "tier": "easy"
+      "tier": "hard"
     },
     {
       "id": "verb_hard_4",
@@ -248,7 +248,7 @@
       "metadata": {
         "target_word_count": 6
       },
-      "tier": "easy"
+      "tier": "hard"
     },
     {
       "id": "verb_hard_5",
@@ -257,7 +257,7 @@
       "metadata": {
         "target_word_count": 150
       },
-      "tier": "easy"
+      "tier": "hard"
     }
   ]
 }

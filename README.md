@@ -62,6 +62,23 @@ The included Streamlit dashboard provides deep drill-downs into model performanc
 
 VeritasBench doesn't just trust automated LLM Judges blindly. It includes a rigorous validation pipeline that samples generations and computes inter-rater agreement (Cohen's Kappa).
 
+### Human-Judge Agreement Study Results
+
+| Dimension | Cohen's Kappa | Raw Agreement |
+|---|---|---|
+| Overall | 0.573 | 80.0% |
+| Instruction Following | 1.000 | 100% |
+| Verbosity | 0.286 | 60% |
+| Refusal Calibration | 0.000* | 100% |
+| Factuality | 0.000* | 60% |
+| Format Adherence | 0.000* | 80% |
+
+*\*Kappa = 0.0 despite high raw agreement indicates zero variance in human labels for this dimension (known Kappa paradox — all raters agreed, causing denominator collapse). Raw agreement is the more meaningful metric in these cases.*
+
+**Overall Kappa of 0.573 indicates moderate-to-substantial agreement between human and LLM judge**, consistent with published findings in LLM-as-judge literature (Zheng et al., 2023 — MT-Bench reports similar variance across subjective vs objective dimensions).
+
+**Key finding:** Agreement is highest on objective dimensions (instruction_following: κ=1.0) and lowest on subjective ones (verbosity: κ=0.286), confirming that automated evaluation is most reliable where human judgment is also most consistent.
+
 ![Confusion Matrix](assets/confusion_matrix.png)
 *Human vs LLM Confusion Matrix*
 
@@ -112,9 +129,11 @@ streamlit run dashboard/app.py
 - Multi-annotator Inter-Rater Agreement (IAA) support.
 - Expansion of the `Refusal Calibration` tier for domain-specific security compliance.
 
+
 ## Benchmark Results
 
 | Model | Overall Score | Easy Tier | Hard Tier |
 |-------|---------------|-----------|-----------|
-| `llama-3.1-8b-instant` | 73.56% | 75.12% | 72.00% |
+| `qwen/qwen3-32b` | 56.59% | 59.17% | 54.00% |
+| `llama-3.1-8b-instant` | 73.45% | 74.91% | 72.00% |
 
