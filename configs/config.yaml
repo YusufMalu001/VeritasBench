@@ -5,6 +5,8 @@ human_eval_sample_size: 5
 judge_model: llama-3.3-70b-versatile
 max_new_tokens: 512
 models_to_evaluate:
+- name: qwen/qwen3-32b
+  type: groq
 - name: llama-3.1-8b-instant
   type: groq
 num_prompts: 25

@@ -73,7 +73,7 @@ def main():
     from groq import Groq
     
     candidate_models = [
-        "gemma2-9b-it",
+        "qwen/qwen3-32b",
         "llama-3.1-8b-instant",
         "llama-3.3-70b-versatile"
     ]
